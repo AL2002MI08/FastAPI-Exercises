@@ -1,0 +1,74 @@
+import datetime
+import json
+import os
+from fastapi import HTTPException
+from pydantic import BaseModel
+from typing import Optional
+from fastapi import APIRouter
+
+router = APIRouter(prefix="/notes", tags=["Notes"])
+data = "data.json"
+
+def load_notes():
+    if not os.path.exists(data):
+        return []
+    with open(data, "r") as f:
+        return json.load(f)
+def save_notes(notes):
+    with open(data, "w") as f:
+        json.dump(notes, f)
+
+class NoteCreate(BaseModel):
+    id: int
+    title: str
+    content: str
+    created_at: Optional[datetime.datetime] = datetime.datetime.now()
+
+class NoteUpdate(BaseModel):
+    title: Optional[str] = None
+    content: Optional[str] = None
+
+
+@router.get("/")
+async def get_notes():
+    notes = load_notes()
+    return {"notes": notes}
+
+@router.get("/{note_id}")
+async def get_note(note_id: int):
+ notes = load_notes()
+ new_note = next((note for note in notes if note["id"] == note_id), None)
+ if new_note is None:
+     raise HTTPException(status_code=404, detail="Note not found")
+ return {"id": new_note["id"], "title": new_note["title"], "content": new_note["content"], "created_at": datetime.datetime.now()}
+
+@router.post("/")
+async def create_note(note: NoteCreate):
+    notes = load_notes()
+    new_note_dict = dict(note)
+    new_note_dict["created_at"] = datetime.datetime.now().isoformat()
+    if notes is None or len(notes) == 0:
+        raise HTTPException(status_code=400, detail="Notes not found")
+    notes.append(new_note_dict)
+    print(f"Memory check: {notes}")
+    return save_notes(notes)
+
+@router.patch("/{note_id}")
+async def update_note(note_id: int, note: NoteUpdate):
+    notes = load_notes()
+    updated_note = next((n for n in notes if n["id"] == note_id), None)
+    if updated_note is None:
+        raise HTTPException(status_code=404, detail="Note not found")
+    updated_values = note.model_dump(exclude_unset=True)
+    updated_note.update(updated_values)
+    save_notes(notes)
+    return {"message": f"Note with {note_id} updated successfully!"}
+
+@router.delete("/{note_id}")
+async def delete_note(note_id: int):
+    notes = load_notes()
+    new_notes =  [n for n in notes if n["id"] != note_id]
+    if len(new_notes) == len(notes):
+        raise HTTPException(status_code=404, detail="Notes not found")
+    save_notes(new_notes)
+    return {"message": f"Note with {note_id} deleted successfully!"}
