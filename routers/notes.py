@@ -53,6 +53,14 @@ async def create_note(note: NoteCreate):
     print(f"Memory check: {notes}")
     return save_notes(notes)
 
+@router.get("/get-notes-by-title/")
+async def get_notes_by_title(title: Optional[str]=None, limit: int = 5):
+    notes = load_notes()
+    filtered_notes = [n for n in notes if n["title"] == title]
+    if not filtered_notes:
+        raise HTTPException(status_code=404, detail="Note not found")
+    return [{"id": n["id"], "title": n["title"], "content": n["content"]} for n in filtered_notes[:limit]]
+
 @router.patch("/{note_id}")
 async def update_note(note_id: int, note: NoteUpdate):
     notes = load_notes()
