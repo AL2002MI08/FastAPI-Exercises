@@ -23,13 +23,21 @@ async def get_notes():
     notes = load_notes()
     return {"notes": notes}
 
+@router.get("/get-notes-by-title/")
+async def get_notes_by_title(title: Optional[str]=None, limit: int = 5):
+    notes = load_notes()
+    filtered_notes = [n for n in notes if n["title"] == title]
+    if not filtered_notes:
+        raise HTTPException(status_code=404, detail="Note not found")
+    return [{"id": n["id"], "title": n["title"], "content": n["content"]} for n in filtered_notes[:limit]]
+
 @router.get("/{note_id}", response_model=NoteResponse)
 async def get_note(note_id: int):
  notes = load_notes()
  new_note = next((note for note in notes if note["id"] == note_id), None)
  if new_note is None:
      raise HTTPException(status_code=404, detail="Note not found")
- return {"id": new_note["id"], "title": new_note["title"], "content": new_note["content"], "created_at": new_note["created_at"]}
+ return new_note
 
 @router.post("/", response_model=NoteResponse)
 async def create_note(note: NoteCreate):
@@ -40,14 +48,6 @@ async def create_note(note: NoteCreate):
     notes.append(new_note_dict)
     save_notes(notes)
     return new_note_dict
-
-@router.get("/get-notes-by-title/")
-async def get_notes_by_title(title: Optional[str]=None, limit: int = 5):
-    notes = load_notes()
-    filtered_notes = [n for n in notes if n["title"] == title]
-    if not filtered_notes:
-        raise HTTPException(status_code=404, detail="Note not found")
-    return [{"id": n["id"], "title": n["title"], "content": n["content"]} for n in filtered_notes[:limit]]
 
 @router.patch("/{note_id}")
 async def update_note(note_id: int, note: NoteUpdate):
