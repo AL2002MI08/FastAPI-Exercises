@@ -25,3 +25,5 @@ Pydantic schemas are used to handle validation and data structure for requests a
 - NoteCreate – used when creating a note
 
 - NoteUpdate – used when updating a note
+
+- NoteResponse - used to specify response content

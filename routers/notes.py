@@ -2,9 +2,9 @@ import datetime
 import json
 import os
 from fastapi import HTTPException
-from pydantic import BaseModel
 from typing import Optional
 from fastapi import APIRouter
+from ..schemas import NoteCreate, NoteUpdate, NoteResponse
 
 router = APIRouter(prefix="/notes", tags=["Notes"])
 data = "data.json"
@@ -18,40 +18,28 @@ def save_notes(notes):
     with open(data, "w") as f:
         json.dump(notes, f)
 
-class NoteCreate(BaseModel):
-    id: int
-    title: str
-    content: str
-    created_at: Optional[datetime.datetime] = datetime.datetime.now()
-
-class NoteUpdate(BaseModel):
-    title: Optional[str] = None
-    content: Optional[str] = None
-
-
 @router.get("/")
 async def get_notes():
     notes = load_notes()
     return {"notes": notes}
 
-@router.get("/{note_id}")
+@router.get("/{note_id}", response_model=NoteResponse)
 async def get_note(note_id: int):
  notes = load_notes()
  new_note = next((note for note in notes if note["id"] == note_id), None)
  if new_note is None:
      raise HTTPException(status_code=404, detail="Note not found")
- return {"id": new_note["id"], "title": new_note["title"], "content": new_note["content"], "created_at": datetime.datetime.now()}
+ return {"id": new_note["id"], "title": new_note["title"], "content": new_note["content"], "created_at": new_note["created_at"]}
 
-@router.post("/")
+@router.post("/", response_model=NoteResponse)
 async def create_note(note: NoteCreate):
     notes = load_notes()
     new_note_dict = dict(note)
+    new_note_dict["id"] = max((n["id"] for n in notes), default=0) + 1
     new_note_dict["created_at"] = datetime.datetime.now().isoformat()
-    if notes is None or len(notes) == 0:
-        raise HTTPException(status_code=400, detail="Notes not found")
     notes.append(new_note_dict)
-    print(f"Memory check: {notes}")
-    return save_notes(notes)
+    save_notes(notes)
+    return new_note_dict
 
 @router.get("/get-notes-by-title/")
 async def get_notes_by_title(title: Optional[str]=None, limit: int = 5):
